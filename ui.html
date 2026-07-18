@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0; padding: 16px; font-size: 12px; color: #1a1a1a;
+    background: #fff;
+  }
+  h1 { font-size: 14px; margin: 0 0 4px; }
+  p.sub { color: #6b6b6b; margin: 0 0 16px; font-size: 11px; }
+  fieldset {
+    border: 1px solid #e5e5e5; border-radius: 8px; margin: 0 0 12px; padding: 12px;
+  }
+  legend { font-weight: 600; padding: 0 4px; font-size: 12px; }
+  label { display: block; margin: 8px 0 4px; font-weight: 500; }
+  input[type=text], input[type=number], select {
+    width: 100%; padding: 6px 8px; border: 1px solid #d5d5d5; border-radius: 6px; font-size: 12px;
+  }
+  input[type=color] { width: 40px; height: 28px; border: none; padding: 0; vertical-align: middle; }
+  .row { display: flex; gap: 8px; }
+  .row > div { flex: 1; }
+  .comp-card {
+    border: 1px solid #eee; border-radius: 6px; padding: 8px; margin-bottom: 8px; background: #fafafa;
+  }
+  .comp-card summary { cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .comp-card[open] summary { margin-bottom: 8px; }
+  .hint { color: #8a8a8a; font-size: 10px; margin-top: 2px; }
+  .modes { display: flex; gap: 12px; align-items: center; }
+  .modes label { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; margin: 0; }
+  button#generate {
+    width: 100%; padding: 10px; background: #18a0fb; color: #fff; border: none;
+    border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; margin-top: 4px;
+  }
+  button#generate:disabled { background: #b7dffb; cursor: default; }
+  #status { margin-top: 8px; font-size: 11px; color: #6b6b6b; min-height: 14px; }
+</style>
+</head>
+<body>
+  <h1>Generador de Design System</h1>
+  <p class="sub">Configura los tokens y componentes. Todo se genera dentro de este archivo de Figma.</p>
+
+  <fieldset>
+    <legend>General</legend>
+    <label>Nombre del sistema</label>
+    <input type="text" id="systemName" value="Design System" />
+    <label>Modos</label>
+    <div class="modes">
+      <label><input type="checkbox" id="modeLight" checked disabled /> Light</label>
+      <label><input type="checkbox" id="modeDark" /> Dark</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Color</legend>
+    <div class="row">
+      <div>
+        <label>Color primario</label>
+        <input type="color" id="brandPrimary" value="#3b82f6" />
+      </div>
+      <div>
+        <label>Color neutro (grises)</label>
+        <input type="color" id="brandNeutral" value="#64748b" />
+      </div>
+      <div>
+        <label>Color de peligro/error</label>
+        <input type="color" id="brandDanger" value="#ef4444" />
+      </div>
+    </div>
+    <div class="hint">Se genera una rampa 50→900 por cada color.</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Spacing &amp; Radius</legend>
+    <div class="row">
+      <div>
+        <label>Base spacing (px)</label>
+        <input type="number" id="spacingBase" value="4" min="1" />
+      </div>
+      <div>
+        <label># de pasos</label>
+        <input type="number" id="spacingSteps" value="8" min="2" max="16" />
+      </div>
+      <div>
+        <label>Base radius (px)</label>
+        <input type="number" id="radiusBase" value="2" min="0" />
+      </div>
+      <div>
+        <label># de pasos radius</label>
+        <input type="number" id="radiusSteps" value="5" min="1" max="8" />
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Tipografía</legend>
+    <div class="row">
+      <div>
+        <label>Familia</label>
+        <input type="text" id="fontFamily" value="Inter" />
+      </div>
+      <div>
+        <label>Tamaño base (px)</label>
+        <input type="number" id="fontBase" value="14" min="8" />
+      </div>
+      <div>
+        <label>Ratio de escala</label>
+        <input type="number" id="fontRatio" value="1.2" step="0.05" min="1" />
+      </div>
+      <div>
+        <label># de pasos</label>
+        <input type="number" id="fontSteps" value="7" min="2" max="12" />
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Componentes</legend>
+    <div id="components"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Documentación</legend>
+    <label><input type="checkbox" id="generateDocs" checked /> Generar página de documentación</label>
+  </fieldset>
+
+  <button id="generate">Generar sistema de diseño</button>
+  <div id="status"></div>
+
+<script>
+const PRESETS = [
+  { key: 'button',   label: 'Button',   sizes: 'sm, md, lg', types: 'primary, secondary, outline, ghost, danger', states: 'default, hover, focus, disabled' },
+  { key: 'input',    label: 'Input',    sizes: 'sm, md, lg', types: 'default', states: 'default, hover, focus, error, disabled' },
+  { key: 'checkbox', label: 'Checkbox', sizes: 'md',         types: 'default', states: 'unchecked, checked, focus, disabled' },
+  { key: 'badge',    label: 'Badge',    sizes: 'sm, md',     types: 'neutral, primary, success, danger', states: 'default' },
+  { key: 'tag',      label: 'Tag',      sizes: 'sm, md',     types: 'neutral, primary', states: 'default, hover' },
+  { key: 'card',     label: 'Card',     sizes: 'md',         types: 'default, outlined', states: 'default, hover' },
+  { key: 'alert',    label: 'Alert',    sizes: 'md',         types: 'info, success, warning, danger', states: 'default' },
+  { key: 'avatar',   label: 'Avatar',   sizes: 'sm, md, lg', types: 'default', states: 'default' },
+];
+
+const container = document.getElementById('components');
+PRESETS.forEach((p, i) => {
+  const el = document.createElement('details');
+  el.className = 'comp-card';
+  if (i < 4) el.open = true;
+  el.innerHTML = `
+    <summary><input type="checkbox" class="comp-enabled" data-key="${p.key}" ${i < 4 ? 'checked' : ''}/> ${p.label}</summary>
+    <label>Sizes (separados por coma)</label>
+    <input type="text" class="comp-sizes" data-key="${p.key}" value="${p.sizes}" />
+    <label>Types / variantes (separados por coma)</label>
+    <input type="text" class="comp-types" data-key="${p.key}" value="${p.types}" />
+    <label>States (separados por coma)</label>
+    <input type="text" class="comp-states" data-key="${p.key}" value="${p.states}" />
+  `;
+  container.appendChild(el);
+});
+
+function csv(v) {
+  return v.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+document.getElementById('generate').addEventListener('click', () => {
+  const components = PRESETS
+    .filter(p => document.querySelector(`.comp-enabled[data-key="${p.key}"]`).checked)
+    .map(p => ({
+      type: p.key,
+      label: p.label,
+      sizes: csv(document.querySelector(`.comp-sizes[data-key="${p.key}"]`).value),
+      types: csv(document.querySelector(`.comp-types[data-key="${p.key}"]`).value),
+      states: csv(document.querySelector(`.comp-states[data-key="${p.key}"]`).value),
+    }));
+
+  const config = {
+    systemName: document.getElementById('systemName').value || 'Design System',
+    modes: document.getElementById('modeDark').checked ? ['Light', 'Dark'] : ['Light'],
+    brand: {
+      primary: document.getElementById('brandPrimary').value,
+      neutral: document.getElementById('brandNeutral').value,
+      danger: document.getElementById('brandDanger').value,
+    },
+    spacing: {
+      base: Number(document.getElementById('spacingBase').value),
+      steps: Number(document.getElementById('spacingSteps').value),
+    },
+    radius: {
+      base: Number(document.getElementById('radiusBase').value),
+      steps: Number(document.getElementById('radiusSteps').value),
+    },
+    typography: {
+      fontFamily: document.getElementById('fontFamily').value || 'Inter',
+      baseSize: Number(document.getElementById('fontBase').value),
+      scaleRatio: Number(document.getElementById('fontRatio').value),
+      steps: Number(document.getElementById('fontSteps').value),
+    },
+    components,
+    generateDocs: document.getElementById('generateDocs').checked,
+  };
+
+  document.getElementById('generate').disabled = true;
+  document.getElementById('status').textContent = 'Generando… esto puede tardar unos segundos.';
+  parent.postMessage({ pluginMessage: { type: 'generate', config } }, '*');
+});
+
+onmessage = (event) => {
+  const msg = event.data.pluginMessage;
+  if (!msg) return;
+  const statusEl = document.getElementById('status');
+  const btn = document.getElementById('generate');
+  if (msg.type === 'progress') {
+    statusEl.textContent = msg.text;
+  } else if (msg.type === 'done') {
+    statusEl.textContent = '✅ Listo — revisa la página "' + msg.pageName + '".';
+    btn.disabled = false;
+  } else if (msg.type === 'error') {
+    statusEl.textContent = '⚠️ ' + msg.text;
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
