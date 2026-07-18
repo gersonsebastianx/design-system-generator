@@ -160,7 +160,8 @@ PRESETS.forEach((p, i) => {
 });
 
 function csv(v) {
-  return v.split(',').map(s => s.trim()).filter(Boolean);
+  const items = v.split(',').map(s => s.trim()).filter(Boolean);
+  return [...new Set(items)]; // dedupe — repeated values would create duplicate variant names and break combineAsVariants
 }
 
 document.getElementById('generate').addEventListener('click', () => {
