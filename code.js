@@ -416,10 +416,12 @@ async function generate(config) {
     for (const size of sizes) {
       for (const type of types) {
         for (const state of states) {
-          const node = builder(size, type, state, {});
-          node.x = cursorX;
-          node.y = 0;
-          figma.currentPage.appendChild(node);
+          const rawNode = builder(size, type, state, {});
+          rawNode.x = cursorX;
+          rawNode.y = 0;
+          figma.currentPage.appendChild(rawNode);
+          // combineAsVariants requires actual COMPONENT nodes, not plain frames/shapes.
+          const node = figma.createComponentFromNode(rawNode);
           variants.push(node);
           cursorX += node.width + 40;
         }
